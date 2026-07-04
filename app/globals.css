@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 #150f0a;
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: #150f0a;
+  border-radius: 9999px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: #c2410c;
+  border-radius: 9999px;
+  border: 2px solid #150f0a;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: #f97316;
+}
