@@ -283,7 +283,9 @@ export default function PersonaChat() {
               <div className="mb-4">
                 <ChaiCodeIcon size="lg" />
               </div>
-              <h2 className="text-white font-bold text-2xl mb-3">Namaste 👋</h2>
+              <h2 className="text-white font-bold text-2xl mb-3 flex items-center justify-center gap-2">
+                Haan Ji !
+              </h2>
               <p className="text-[#8a7d6f] max-w-sm leading-relaxed">
                 Pick a mentor above and type your question below. Ask about code, careers, or
                 debugging — anything at all.
