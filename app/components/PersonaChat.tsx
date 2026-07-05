@@ -35,10 +35,22 @@ function ThinkingIndicator({ emoji }: { emoji: string }) {
   );
 }
 
+async function parseErrorResponse(res: Response): Promise<string> {
+  const text = await res.text();
+  if (!text) return `Request failed (${res.status})`;
+  try {
+    const data = JSON.parse(text) as { error?: string };
+    return data.error ?? text;
+  } catch {
+    return text;
+  }
+}
+
 export default function PersonaChat() {
   const [personaId, setPersonaId] = useState<PersonaId>("hitesh");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -49,20 +61,26 @@ export default function PersonaChat() {
 
   function handleClearChat() {
     setMessages([]);
+    setError(null);
   }
 
   async function handleSend() {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
 
+    const previousMessages = messages;
     const nextMessages: Message[] = [...messages, { role: "user", content: trimmed }];
     setInput("");
+    setError(null);
     setIsStreaming(true);
     setIsThinking(true);
 
     flushSync(() => {
       setMessages([...nextMessages, { role: "assistant", content: "" }]);
     });
+
+    let gotFirstChunk = false;
+    let assistantText = "";
 
     try {
       const res = await fetch("/api/chat", {
@@ -72,16 +90,17 @@ export default function PersonaChat() {
       });
 
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || `Request failed (${res.status})`);
+        const errorMessage = await parseErrorResponse(res);
+        setMessages(previousMessages);
+        setInput(trimmed);
+        setError(errorMessage);
+        return;
       }
 
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
-      let gotFirstChunk = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -103,21 +122,24 @@ export default function PersonaChat() {
         });
       }
     } catch (err) {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && last.content === "") {
+      const errorMessage =
+        err instanceof Error ? err.message : "Something went wrong. Try again.";
+
+      if (!gotFirstChunk) {
+        setMessages(previousMessages);
+        setInput(trimmed);
+        setError(errorMessage);
+      } else {
+        setMessages((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = {
             role: "assistant",
-            content: "Something went wrong. Try again.",
+            content: assistantText,
           };
           return updated;
-        }
-        return [
-          ...prev,
-          { role: "assistant", content: "Something went wrong. Try again." },
-        ];
-      });
+        });
+        setError(errorMessage);
+      }
     } finally {
       setIsThinking(false);
       setIsStreaming(false);
@@ -164,6 +186,7 @@ export default function PersonaChat() {
                 onClick={() => {
                     setPersonaId(id);
                     setMessages([]);
+                    setError(null);
                 } }
                 className={`flex-1 flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
                   selected
@@ -252,6 +275,12 @@ export default function PersonaChat() {
             </div>
           )}
         </div>
+
+        {error && (
+          <div className="mx-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-300 text-sm truncate">
+            {error}
+          </div>
+        )}
 
         {/* Input bar */}
         <div className="flex items-start gap-3 px-6 py-5 border-t border-[#2a221b]">

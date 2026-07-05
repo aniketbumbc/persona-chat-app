@@ -1,3 +1,7 @@
+/**
+ *  This is only serving the prompts from the database to the client. This only for development purposes Not using in the app.
+ */
+
 import { NextResponse } from 'next/server';
 import { pool } from '../../lib/db';
 
