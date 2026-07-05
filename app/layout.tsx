@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Persona Chat AI",
   description: "Persona Chat AI is a chatbot that can help you with your tasks",
+  icons: {
+    icon: "/chai-code-icon-circled.png",
+    apple: "/chai-code-icon-circled.png",
+  },
 };
 
 export default function RootLayout({

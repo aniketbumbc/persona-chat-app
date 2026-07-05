@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { flushSync } from "react-dom";
+import Image from "next/image";
 
 type PersonaId = "hitesh" | "piyush";
 
@@ -59,6 +60,25 @@ function CheckIcon() {
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
+  );
+}
+
+function ChaiCodeIcon({ size = "sm" }: { size?: "sm" | "lg" }) {
+  const isLarge = size === "lg";
+  return (
+    <div
+      className={`rounded-full bg-[#3a2a1a] flex items-center justify-center overflow-hidden shrink-0 ${
+        isLarge ? "w-16 h-16" : "w-12 h-12"
+      }`}
+    >
+      <Image
+        src="/chai-code-icon.png"
+        alt="Chai aur Code"
+        width={isLarge ? 52 : 40}
+        height={isLarge ? 52 : 40}
+        className="object-contain p-1"
+      />
+    </div>
   );
 }
 
@@ -207,9 +227,7 @@ export default function PersonaChat() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-[#2a221b]">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[#3a2a1a] flex items-center justify-center text-xl">
-              ☕
-            </div>
+            <ChaiCodeIcon />
             <div>
               <h1 className="text-white font-bold text-xl leading-tight">Persona Chat</h1>
               <p className="text-[#8a7d6f] text-sm">Ask your mentor about technical or career related questions</p>
@@ -262,8 +280,8 @@ export default function PersonaChat() {
         <div ref={scrollRef} className="chat-scroll flex-1 min-h-[400px] max-h-[420px] overflow-y-auto border-t border-[#2a221b] px-6 py-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-8">
-              <div className="w-16 h-16 rounded-full bg-[#3a2a1a] flex items-center justify-center text-2xl mb-4">
-                ☕
+              <div className="mb-4">
+                <ChaiCodeIcon size="lg" />
               </div>
               <h2 className="text-white font-bold text-2xl mb-3">Namaste 👋</h2>
               <p className="text-[#8a7d6f] max-w-sm leading-relaxed">
