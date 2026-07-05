@@ -46,6 +46,22 @@ async function parseErrorResponse(res: Response): Promise<string> {
   }
 }
 
+function CopyIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
 export default function PersonaChat() {
   const [personaId, setPersonaId] = useState<PersonaId>("hitesh");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -53,30 +69,49 @@ export default function PersonaChat() {
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, isThinking]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   function handleClearChat() {
     setMessages([]);
     setError(null);
   }
 
-  async function handleSend() {
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+  async function handleCopy(content: string, index: number) {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedIndex(index);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopiedIndex(null), 2000);
+    } catch {
+      setError("Failed to copy to clipboard.");
+    }
+  }
 
-    const previousMessages = messages;
-    const nextMessages: Message[] = [...messages, { role: "user", content: trimmed }];
-    setInput("");
+  async function streamChat(
+    apiMessages: Message[],
+    options?: { rollbackMessages?: Message[]; restoreInput?: string },
+  ) {
+    const previousMessages = options?.rollbackMessages ?? messages;
+
     setError(null);
     setIsStreaming(true);
     setIsThinking(true);
 
     flushSync(() => {
-      setMessages([...nextMessages, { role: "assistant", content: "" }]);
+      setMessages([...apiMessages, { role: "assistant", content: "" }]);
     });
 
     let gotFirstChunk = false;
@@ -86,13 +121,13 @@ export default function PersonaChat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personaId, messages: nextMessages }),
+        body: JSON.stringify({ personaId, messages: apiMessages }),
       });
 
       if (!res.ok) {
         const errorMessage = await parseErrorResponse(res);
         setMessages(previousMessages);
-        setInput(trimmed);
+        if (options?.restoreInput !== undefined) setInput(options.restoreInput);
         setError(errorMessage);
         return;
       }
@@ -127,7 +162,7 @@ export default function PersonaChat() {
 
       if (!gotFirstChunk) {
         setMessages(previousMessages);
-        setInput(trimmed);
+        if (options?.restoreInput !== undefined) setInput(options.restoreInput);
         setError(errorMessage);
       } else {
         setMessages((prev) => {
@@ -144,6 +179,19 @@ export default function PersonaChat() {
       setIsThinking(false);
       setIsStreaming(false);
     }
+  }
+
+  async function handleSend() {
+    const trimmed = input.trim();
+    if (!trimmed || isStreaming) return;
+
+    const previousMessages = messages;
+    const nextMessages: Message[] = [...messages, { role: "user", content: trimmed }];
+    setInput("");
+    await streamChat(nextMessages, {
+      rollbackMessages: previousMessages,
+      restoreInput: trimmed,
+    });
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -228,47 +276,76 @@ export default function PersonaChat() {
               {messages.map((msg, i) => {
                 const isUser = msg.role === "user";
                 const avatar = isUser ? "U" : PERSONAS[personaId].initial;
+                const isThinkingBubble =
+                  !isUser && !msg.content && isThinking && i === messages.length - 1;
+                const showActions =
+                  msg.content && !isThinkingBubble && !isStreaming;
 
                 return (
                   <div
                     key={i}
-                    className={`flex items-end gap-2 max-w-[85%] ${
-                      isUser ? "self-end flex-row-reverse" : "self-start"
+                    className={`group flex flex-col gap-1 max-w-[85%] ${
+                      isUser ? "self-end items-end" : "self-start items-start"
                     }`}
                   >
-                    <span
-                      className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-sm font-bold ${
-                        isUser
-                          ? "bg-orange-600 text-white"
-                          : "bg-[#3a2a1a] text-orange-400"
-                      }`}
-                    >
-                      {avatar}
-                    </span>
                     <div
-                      className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap font-mono ${
-                        isUser
-                          ? "bg-orange-500 text-white"
-                          : "bg-[#1f1712] text-[#e8ddd0]"
+                      className={`flex items-end gap-2 ${
+                        isUser ? "flex-row-reverse" : "flex-row"
                       }`}
                     >
-                      {!isUser &&
-                      !msg.content &&
-                      isThinking &&
-                      i === messages.length - 1 ? (
-                        <ThinkingIndicator emoji={PERSONAS[personaId].thinkingEmoji} />
-                      ) : (
-                        <>
-                          {msg.content}
-                          {!isUser &&
-                            isStreaming &&
-                            !isThinking &&
-                            i === messages.length - 1 && (
-                              <span className="inline-block w-2 h-4 ml-0.5 bg-orange-400 animate-pulse align-middle" />
-                            )}
-                        </>
-                      )}
+                      <span
+                        className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-sm font-bold ${
+                          isUser
+                            ? "bg-orange-600 text-white"
+                            : "bg-[#3a2a1a] text-orange-400"
+                        }`}
+                      >
+                        {avatar}
+                      </span>
+                      <div
+                        className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap font-mono ${
+                          isUser
+                            ? "bg-orange-500 text-white"
+                            : "bg-[#1f1712] text-[#e8ddd0]"
+                        }`}
+                      >
+                        {isThinkingBubble ? (
+                          <ThinkingIndicator emoji={PERSONAS[personaId].thinkingEmoji} />
+                        ) : (
+                          <>
+                            {msg.content}
+                            {!isUser &&
+                              isStreaming &&
+                              !isThinking &&
+                              i === messages.length - 1 && (
+                                <span className="inline-block w-2 h-4 ml-0.5 bg-orange-400 animate-pulse align-middle" />
+                              )}
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {showActions && (
+                      <div
+                        className={`flex items-center gap-1 px-1 ${
+                          isUser ? "flex-row-reverse" : "flex-row"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => void handleCopy(msg.content, i)}
+                          title={copiedIndex === i ? "Copied!" : "Copy"}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            copiedIndex === i
+                              ? "text-green-400"
+                              : isUser
+                                ? "text-orange-300/70 hover:text-white hover:bg-orange-600/40"
+                                : "text-[#8a7d6f] hover:text-[#e8ddd0] hover:bg-[#2a221b]"
+                          }`}
+                        >
+                          {copiedIndex === i ? <CheckIcon /> : <CopyIcon />}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
