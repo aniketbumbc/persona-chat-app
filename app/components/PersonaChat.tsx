@@ -12,7 +12,7 @@ interface Message {
 
 const PERSONAS: Record<PersonaId, { label: string; initial: string; thinkingEmoji: string }> = {
   hitesh: { label: "Hitesh Sir", initial: "H", thinkingEmoji: "☕" },
-  piyush: { label: "Piyush Sir", initial: "P", thinkingEmoji: "💛" },
+  piyush: { label: "Piyush Sir", initial: "P", thinkingEmoji: "🔥" },
 };
 
 function ThinkingIndicator({ emoji }: { emoji: string }) {
